@@ -1,4 +1,7 @@
+import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import '../models/ar_camera_models.dart';
@@ -61,6 +64,65 @@ class ImageQualityAnalyzer {
         warnings: [],
       );
     }
+  }
+
+  /// Analyze a static image file for quality (after capture)
+  /// Used for post-capture blur detection
+  Future<ImageQualityResult> analyzeImageFile(String imagePath) async {
+    try {
+      final bytes = await File(imagePath).readAsBytes();
+      final completer = Completer<ui.Image>();
+      
+      ui.decodeImageFromList(bytes, (image) {
+        completer.complete(image);
+      });
+      
+      final image = await completer.future;
+      
+      // Convert to grayscale byte array
+      final grayscale = await _imageToGrayscale(image);
+      
+      // Calculate metrics
+      final blurScore = _calculateBlurScore(grayscale, image.width, image.height);
+      final exposureMetrics = _calculateExposureMetrics(grayscale);
+      final hasBacklight = _detectBacklight(grayscale, image.width, image.height);
+
+      return ImageQualityResult.analyze(
+        blurScore: blurScore,
+        exposureScore: exposureMetrics['exposure']!,
+        brightnessScore: exposureMetrics['brightness']!,
+        hasBacklight: hasBacklight,
+      );
+    } catch (e) {
+      debugPrint('Image file analysis error: $e');
+      return const ImageQualityResult(
+        blurScore: 50,
+        exposureScore: 50,
+        brightnessScore: 50,
+        hasBacklight: false,
+        overallStatus: QualityStatus.good,
+        warnings: [],
+      );
+    }
+  }
+
+  /// Convert decoded image to grayscale
+  Future<Uint8List> _imageToGrayscale(ui.Image image) async {
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final pixels = bytes!.buffer.asUint8List();
+    final grayscale = Uint8List(image.width * image.height);
+    
+    for (int i = 0; i < grayscale.length; i++) {
+      final pixelIndex = i * 4;
+      if (pixelIndex + 2 < pixels.length) {
+        final r = pixels[pixelIndex];
+        final g = pixels[pixelIndex + 1];
+        final b = pixels[pixelIndex + 2];
+        // Luminance formula
+        grayscale[i] = ((0.299 * r) + (0.587 * g) + (0.114 * b)).round().clamp(0, 255);
+      }
+    }
+    return grayscale;
   }
 
   /// Convert CameraImage to grayscale byte array

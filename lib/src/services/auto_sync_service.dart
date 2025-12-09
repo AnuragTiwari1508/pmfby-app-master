@@ -1,14 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:workmanager/workmanager.dart';
 import 'local_storage_service.dart';
 import 'connectivity_service.dart';
+import 'cloud_image_service.dart';
+import 'image_deduplication_service.dart';
 
 class AutoSyncService {
   static const String syncTaskName = 'crop_image_sync';
   static const String syncTaskTag = 'sync_tag';
   
   final LocalStorageService _localStorageService = LocalStorageService();
+  final CloudImageService _cloudImageService = CloudImageService();
+  final ImageDeduplicationService _deduplicationService = ImageDeduplicationService();
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   
   Timer? _syncTimer;
@@ -127,25 +132,41 @@ class AutoSyncService {
     }
   }
 
-  // Upload to server (mock implementation)
+  // Upload to Cloudinary with deduplication
   Future<void> _uploadToServer(PendingUpload upload) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 2));
+    final file = File(upload.imagePath);
     
-    // TODO: Replace with actual API call
-    // Example:
-    // final file = File(upload.imagePath);
-    // final request = http.MultipartRequest('POST', Uri.parse('YOUR_API_ENDPOINT'));
-    // request.files.add(await http.MultipartFile.fromPath('image', file.path));
-    // request.fields['cropType'] = upload.cropType;
-    // request.fields['latitude'] = upload.latitude?.toString() ?? '';
-    // request.fields['longitude'] = upload.longitude?.toString() ?? '';
-    // final response = await request.send();
-    // if (response.statusCode != 200) {
-    //   throw Exception('Upload failed');
-    // }
+    if (!await file.exists()) {
+      throw Exception('Image file not found: ${upload.imagePath}');
+    }
     
-    print('Uploaded: ${upload.id}');
+    // Check for duplicates
+    final isDuplicate = await _deduplicationService.isImageDuplicate(file);
+    if (isDuplicate) {
+      print('⚠️ Duplicate image detected, skipping upload: ${upload.id}');
+      return;
+    }
+    
+    // Upload to Cloudinary
+    final result = await _cloudImageService.uploadImage(
+      file,
+      farmerId: upload.id.split('_').first,
+      imageType: upload.cropType,
+      metadata: {
+        'description': upload.description ?? '',
+        'latitude': upload.latitude?.toString() ?? '',
+        'longitude': upload.longitude?.toString() ?? '',
+        'capturedAt': upload.capturedAt.toIso8601String(),
+      },
+    );
+    
+    // Mark image as uploaded to prevent future duplicates
+    await _deduplicationService.markImageAsUploaded(file);
+    
+    // Update local storage with Cloudinary URL
+    await _localStorageService.updateUploadUrl(upload.id, result.secureUrl);
+    
+    print('✅ Uploaded to Cloudinary: ${result.secureUrl}');
   }
 
   // Show sync notification

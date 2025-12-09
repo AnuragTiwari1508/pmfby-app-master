@@ -80,7 +80,7 @@ class _ARCameraScreenState extends State<ARCameraScreen>
   // State
   bool _isCapturing = false;
   bool _captureEnabled = false;
-  List<String> _captureBlockers = [];
+  List<String> _warningMessages = [];
 
   // GPS
   Position? _currentPosition;
@@ -131,7 +131,7 @@ class _ARCameraScreenState extends State<ARCameraScreen>
           setState(() {
             _currentValidation = state;
             _captureEnabled = _validationEngine.canCapture();
-            _captureBlockers = _validationEngine.getCaptureBlockers();
+            _warningMessages = _validationEngine.getWarningMessages();
           });
         }
       },
@@ -645,6 +645,36 @@ class _ARCameraScreenState extends State<ARCameraScreen>
 
       debugPrint('Image saved to: $imagePath');
 
+      // Analyze captured image for blur AFTER capture
+      final imageAnalyzer = ImageQualityAnalyzer();
+      final qualityResult = await imageAnalyzer.analyzeImageFile(imagePath);
+      
+      // Show warning if image is blurry
+      if (qualityResult.isBlurry && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.warning, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Warning: Image may be blurry (score: ${qualityResult.blurScore.toInt()}). Consider retaking for better quality.',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: ARColors.warning,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+      }
+
       // Complete current task
       _taskManager.completeCurrentTask(
         imagePath: imagePath,
@@ -892,8 +922,13 @@ class _ARCameraScreenState extends State<ARCameraScreen>
   }
 
   Widget _buildCameraView(BuildContext context, String lang) {
+    // Add safety check for camera controller
+    if (_controller == null || !_controller!.value.isInitialized) {
+      return _buildLoadingState(lang);
+    }
+
     final size = MediaQuery.of(context).size;
-    final previewSize = _controller?.value.previewSize ?? const Size(1920, 1080);
+    final previewSize = _controller!.value.previewSize ?? const Size(1920, 1080);
 
     return Stack(
       children: [
@@ -989,8 +1024,8 @@ class _ARCameraScreenState extends State<ARCameraScreen>
         // Bottom Controls
         _buildBottomControls(context, lang),
 
-        // Capture Blockers Toast
-        if (_captureBlockers.isNotEmpty && !_captureEnabled)
+        // Warning Messages (non-blocking)
+        if (_warningMessages.isNotEmpty)
           _buildBlockerIndicator(lang),
       ],
     );
@@ -1375,9 +1410,8 @@ class _ARCameraScreenState extends State<ARCameraScreen>
   }
 
   Widget _buildBlockerIndicator(String lang) {
-    // Show as warning instead of blocker
-    final hasWarnings = _validationEngine.hasQualityWarnings();
-    if (!hasWarnings) return const SizedBox.shrink();
+    // Show warnings (non-blocking) - distance, tilt, quality info
+    if (_warningMessages.isEmpty) return const SizedBox.shrink();
     
     return Positioned(
       bottom: 180,
@@ -1386,7 +1420,7 @@ class _ARCameraScreenState extends State<ARCameraScreen>
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: ARColors.warning.withOpacity(0.85),
+          color: ARColors.neutral.withOpacity(0.75),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -1395,9 +1429,7 @@ class _ARCameraScreenState extends State<ARCameraScreen>
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                _captureBlockers.isNotEmpty
-                    ? '${_captureBlockers.first} (tap to capture anyway)'
-                    : 'For best results, hold steady',
+                _warningMessages.first,
                 style: GoogleFonts.roboto(
                   color: Colors.white,
                   fontSize: 13,

@@ -65,43 +65,43 @@ void main() {
 
 // Global initialization function to be called from splash screen
 Future<void> initializeApp() async {
-  // Firebase initialization
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    if (kDebugMode) debugPrint('✅ Firebase initialized');
+    if (kDebugMode) debugPrint('🚀 Starting initialization...');
+    
+    // Firebase initialization (optional)
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(const Duration(seconds: 5));
+      if (kDebugMode) debugPrint('✅ Firebase initialized');
+    } catch (e) {
+      if (kDebugMode) debugPrint('⚠️ Firebase skipped: $e');
+    }
+
+    // MongoDB initialization (optional - skip if takes too long)
+    try {
+      await MongoDBService.instance.connect().timeout(const Duration(seconds: 3));
+      if (kDebugMode) debugPrint('✅ MongoDB connected');
+    } catch (e) {
+      if (kDebugMode) debugPrint('⚠️ MongoDB skipped: $e');
+    }
+
+    // Local Auth initialization (essential)
+    final authService = AuthService();
+    await authService.initialize();
+
+    final allUsers = authService.getAllUsers();
+
+    if (allUsers.isEmpty) {
+      if (kDebugMode) debugPrint('🔧 Creating demo users...');
+      await _createDemoUsers(authService);
+    }
+
+    if (kDebugMode) debugPrint('✅ Initialization complete');
   } catch (e) {
-    debugPrint('⚠️ Firebase initialization error: $e');
+    if (kDebugMode) debugPrint('⚠️ Initialization error: $e');
+    // Continue anyway - app can work with minimal features
   }
-
-  // MongoDB initialization (optional - app works without it)
-  try {
-    await MongoDBService.instance.connect();
-    if (kDebugMode) debugPrint('✅ MongoDB connected');
-  } catch (e) {
-    if (kDebugMode) debugPrint('⚠️ MongoDB not available (using local storage): $e');
-    // App will continue to work with local storage only
-  }
-
-  // Local Auth initialization (with demo user logic)
-  final authService = AuthService();
-  await authService.initialize();
-
-  final allUsers = authService.getAllUsers();
-
-  if (allUsers.isEmpty) {
-    if (kDebugMode) debugPrint('🔧 Creating demo users...');
-    await _createDemoUsers(authService);
-    if (kDebugMode) debugPrint('✅ Demo users created');
-  }
-
-  // Initialize connectivity and auto-sync services
-  final connectivityService = ConnectivityService();
-  final autoSyncService = AutoSyncService();
-  await autoSyncService.initializeNotifications();
-  await autoSyncService.initializeBackgroundSync();
-  if (kDebugMode) debugPrint('✅ Initialization complete');
 }
 
 Future<void> _createDemoUsers(AuthService authService) async {
@@ -153,7 +153,7 @@ class ThemeProvider with ChangeNotifier {
 GoRouter _buildRouter(BuildContext context) {
   return GoRouter(
     refreshListenable: context.read<AuthProvider>(),
-    initialLocation: '/login',
+    initialLocation: '/dashboard',
     redirect: (BuildContext context, GoRouterState state) {
       // You can plug in actual auth logic later.
       return null;
@@ -335,29 +335,51 @@ class KrashiBandhuApp extends StatefulWidget {
 
 class _KrashiBandhuAppState extends State<KrashiBandhuApp> {
   bool _initialized = false;
+  bool _initializing = false;
   late AuthProvider _authProvider;
   late ConnectivityService _connectivityService;
   late AutoSyncService _autoSyncService;
 
   Future<void> _initialize() async {
-    if (kDebugMode) debugPrint('🚀 Starting initialization...');
-    await initializeApp();
+    if (_initializing || _initialized) return;
+    _initializing = true;
     
-    // Initialize providers after splash
-    final authService = AuthService();
-    await authService.initialize();
-    _authProvider = AuthProvider(authService);
-    await _authProvider.initialize();
-    
-    _connectivityService = ConnectivityService();
-    _autoSyncService = AutoSyncService();
-    
-    if (kDebugMode) debugPrint('✅ Ready');
-    
-    if (mounted) {
-      setState(() {
-        _initialized = true;
-      });
+    try {
+      await initializeApp();
+      
+      // Initialize providers
+      final authService = AuthService();
+      await authService.initialize();
+      _authProvider = AuthProvider(authService);
+      await _authProvider.initialize();
+      
+      _connectivityService = ConnectivityService();
+      _autoSyncService = AutoSyncService();
+      
+      // Initialize services with timeouts
+      try {
+        await _autoSyncService.initializeNotifications().timeout(const Duration(seconds: 2));
+        await _autoSyncService.initializeBackgroundSync().timeout(const Duration(seconds: 2));
+      } catch (e) {
+        if (kDebugMode) debugPrint('⚠️ Background sync skipped: $e');
+      }
+      
+      if (kDebugMode) debugPrint('✅ Ready');
+      
+      if (mounted) {
+        setState(() {
+          _initialized = true;
+          _initializing = false;
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('❌ Initialization failed: $e');
+      if (mounted) {
+        setState(() {
+          _initialized = true; // Continue anyway
+          _initializing = false;
+        });
+      }
     }
   }
 

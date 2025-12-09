@@ -7,24 +7,11 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 /// Service for uploading images to cloud storage (Cloudinary)
 class CloudImageService {
-  // TODO: Replace with your Cloudinary credentials
-  // Get free account at: https://cloudinary.com
-  static const String cloudName = String.fromEnvironment(
-    'CLOUDINARY_CLOUD_NAME',
-    defaultValue: 'your-cloud-name',
-  );
-  static const String apiKey = String.fromEnvironment(
-    'CLOUDINARY_API_KEY',
-    defaultValue: 'your-api-key',
-  );
-  static const String apiSecret = String.fromEnvironment(
-    'CLOUDINARY_API_SECRET',
-    defaultValue: 'your-api-secret',
-  );
-  static const String uploadPreset = String.fromEnvironment(
-    'CLOUDINARY_UPLOAD_PRESET',
-    defaultValue: 'pmfby_preset',
-  );
+  // Cloudinary credentials (from .env file)
+  static const String cloudName = 'dxahqsgwv';
+  static const String apiKey = '916295378241238';
+  static const String apiSecret = 'X2GoZB5cN3lnPSE4HEuOAby1m80';
+  static const String uploadPreset = 'pmfby-app';
 
   static const String baseUrl = 'https://api.cloudinary.com/v1_1';
   static const String uploadFolder = 'pmfby_crops';
@@ -206,6 +193,9 @@ class CloudinaryUploadResult {
     required this.bytes,
     required this.createdAt,
   });
+
+  // Alias for secure URL (same as url which is already HTTPS from Cloudinary)
+  String get secureUrl => url;
 
   Map<String, dynamic> toMap() {
     return {
