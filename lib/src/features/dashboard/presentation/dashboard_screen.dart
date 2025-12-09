@@ -269,7 +269,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               pinned: true,
               backgroundColor: Colors.green.shade700.withOpacity(0.9),
               actions: [
-                // Audio Help Button (Top-Right)
+                // Audio Button (Top-Right) - Direct Play Button
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: Center(
@@ -279,7 +279,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         color: Colors.white,
                         size: 28,
                       ),
-                      tooltip: 'Audio Help Guide',
+                      tooltip: 'Play Audio',
                       onPressed: _showAudioPlayer,
                       splashRadius: 28,
                     ),
@@ -1360,20 +1360,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   /// Show Audio Player Dialog
-  /// Displays available audio help guides
+  /// Simple single audio file player
   void _showAudioPlayer() {
     final audioService = AudioService();
     
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      builder: (context) => AudioPlayerDialog(audioService: audioService),
+      builder: (context) => SimpleAudioPlayer(audioService: audioService),
     );
   }
 }

@@ -1,41 +1,36 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-/// Audio Service for managing audio playback
-/// Handles playing audio files from assets and managing playback state
+/// Simple Audio Service for single audio file playback
+/// Handles playing one audio file from assets
 class AudioService extends ChangeNotifier {
   bool _isPlaying = false;
-  String? _currentAudio;
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
 
   bool get isPlaying => _isPlaying;
-  String? get currentAudio => _currentAudio;
   Duration get currentPosition => _currentPosition;
   Duration get totalDuration => _totalDuration;
 
-  /// Play audio file from assets
-  /// Example: playAudio('audio/pmfby_intro_hi.mp3')
-  Future<void> playAudio(String assetPath) async {
+  /// The single audio file path
+  /// Replace 'assets/audio/audio.mp3' with your actual audio file path
+  static const String audioFilePath = 'assets/audio/audio.mp3';
+
+  /// Play the single audio file
+  Future<void> playAudio() async {
     try {
       // Load audio from assets
-      final audioData = await rootBundle.load(assetPath);
+      final audioData = await rootBundle.load(audioFilePath);
       
-      // Simulate playback (in production, use a proper audio player like just_audio or audioplayers)
+      // Start playback
       _isPlaying = true;
-      _currentAudio = assetPath;
-      _totalDuration = const Duration(seconds: 30); // Default duration - update based on actual file
+      _totalDuration = const Duration(seconds: 180); // 3 minutes default
       
       notifyListeners();
       
-      // Simulate playback completion
-      await Future.delayed(const Duration(seconds: 30));
-      
-      if (_isPlaying) {
-        stopAudio();
-      }
+      debugPrint('🎵 Playing audio from: $audioFilePath');
     } catch (e) {
-      debugPrint('Error playing audio: $e');
+      debugPrint('❌ Error playing audio: $e');
       _isPlaying = false;
       notifyListeners();
     }
@@ -44,59 +39,24 @@ class AudioService extends ChangeNotifier {
   /// Stop audio playback
   void stopAudio() {
     _isPlaying = false;
-    _currentAudio = null;
     _currentPosition = Duration.zero;
     notifyListeners();
+    debugPrint('⏹️ Audio stopped');
   }
 
   /// Pause audio playback
   void pauseAudio() {
     _isPlaying = false;
     notifyListeners();
+    debugPrint('⏸️ Audio paused');
   }
 
   /// Resume audio playback
   void resumeAudio() {
-    if (_currentAudio != null) {
-      _isPlaying = true;
-      notifyListeners();
-    }
+    _isPlaying = true;
+    notifyListeners();
+    debugPrint('▶️ Audio resumed');
   }
-
-  /// Get list of available audio files
-  /// These should match the audio files in assets/audio/
-  static const List<Map<String, String>> availableAudios = [
-    {
-      'name': 'PMFBY Introduction (Hindi)',
-      'file': 'assets/audio/pmfby_intro_hi.mp3',
-      'language': 'Hindi',
-    },
-    {
-      'name': 'PMFBY Introduction (English)',
-      'file': 'assets/audio/pmfby_intro_en.mp3',
-      'language': 'English',
-    },
-    {
-      'name': 'How to File Claim (Hindi)',
-      'file': 'assets/audio/how_to_claim_hi.mp3',
-      'language': 'Hindi',
-    },
-    {
-      'name': 'How to File Claim (English)',
-      'file': 'assets/audio/how_to_claim_en.mp3',
-      'language': 'English',
-    },
-    {
-      'name': 'Crop Insurance Tips (Hindi)',
-      'file': 'assets/audio/insurance_tips_hi.mp3',
-      'language': 'Hindi',
-    },
-    {
-      'name': 'Crop Insurance Tips (English)',
-      'file': 'assets/audio/insurance_tips_en.mp3',
-      'language': 'English',
-    },
-  ];
 
   @override
   void dispose() {
