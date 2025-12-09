@@ -24,10 +24,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final lang = languageProvider.currentLanguage;
 
         if (user == null) {
-          return Scaffold(
-            appBar: AppBar(title: Text(AppStrings.get('profile', 'profile', lang))),
-            body: const Center(child: Text('No user data available')),
-          );
+          return _buildLoginPrompt(context, lang);
         }
 
         return Scaffold(
@@ -429,6 +426,249 @@ class _ProfileScreenState extends State<ProfileScreen> {
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: Text(AppStrings.get('profile', 'logout', lang)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoginPrompt(BuildContext context, String lang) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Background
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/backgrounds/OVERALLBACKGROUND.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.green.shade50, Colors.amber.shade50],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Overlay
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withOpacity(0.85),
+                    Colors.white.withOpacity(0.75),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Content
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Icon
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade700,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.green.shade200,
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.person_outline,
+                        size: 60,
+                        color: Colors.white,
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Title
+                    Text(
+                      AppStrings.get('profile', 'profile', lang),
+                      style: GoogleFonts.poppins(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade800,
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Message
+                    Text(
+                      'Please login to view your profile',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.roboto(
+                        fontSize: 16,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+
+                    const SizedBox(height: 48),
+
+                    // Login Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: () => context.go('/login'),
+                        icon: const Icon(Icons.login, size: 24),
+                        label: Text(
+                          'Login',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade700,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 3,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Register Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.go('/register'),
+                        icon: const Icon(Icons.person_add, size: 24),
+                        label: Text(
+                          'Create Account',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.green.shade700,
+                          side: BorderSide(color: Colors.green.shade700, width: 2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Info Cards
+                    _buildFeatureCard(
+                      icon: Icons.verified_user,
+                      title: 'Secure & Private',
+                      description: 'Your data is protected',
+                      color: Colors.blue,
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    _buildFeatureCard(
+                      icon: Icons.cloud_done,
+                      title: 'Sync Across Devices',
+                      description: 'Access from anywhere',
+                      color: Colors.purple,
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    _buildFeatureCard(
+                      icon: Icons.support_agent,
+                      title: '24/7 Support',
+                      description: 'We\'re here to help',
+                      color: Colors.orange,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

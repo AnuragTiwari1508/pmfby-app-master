@@ -184,10 +184,10 @@ class ValidationEngine {
   }
 
   /// Check if capture is allowed based on current validation
-  /// Now always returns true - quality issues are warnings only
+  /// Always returns true - quality checks are done after capture, not before
   bool canCapture() {
-    // Always allow capture - user can decide if quality is acceptable
-    // Quality warnings are shown but don't block capture
+    // Always allow capture - blur detection happens after image is captured
+    // Quality warnings are shown but don't block the capture action
     return true;
   }
 
@@ -214,53 +214,64 @@ class ValidationEngine {
     return false;
   }
 
-  /// Get list of issues preventing capture
-  List<String> getCaptureBlockers() {
-    final blockers = <String>[];
+  /// Get list of warning messages (non-blocking)
+  /// Distance, tilt, and quality issues are just informational
+  List<String> getWarningMessages() {
+    final warnings = <String>[];
     final state = _currentState;
     
-    if (state.imageQuality != null) {
-      if (state.imageQuality!.isBlurry) {
-        blockers.add('Image is blurry - hold steady');
-      }
-      if (state.imageQuality!.exposureStatus == ExposureStatus.overexposed) {
-        blockers.add('Too bright - move to shade or reduce exposure');
-      }
-      if (state.imageQuality!.exposureStatus == ExposureStatus.underexposed) {
-        blockers.add('Too dark - move to better lighting');
-      }
-      if (state.imageQuality!.hasBacklight) {
-        blockers.add('Backlight detected - reposition camera');
-      }
-    }
-    
-    if (state.tilt != null && state.tilt!.status == TiltStatus.tilted) {
-      blockers.add('Camera too tilted - hold level');
-    }
-    
-    if (!state.isStable) {
-      blockers.add('Camera not stable - hold steady');
-    }
-    
+    // Distance warnings (non-blocking)
     if (state.distance != null) {
       switch (state.distance!.status) {
         case DistanceStatus.tooClose:
-          blockers.add('Too close - move back');
+          warnings.add('Too close - consider moving back');
           break;
         case DistanceStatus.tooFar:
-          blockers.add('Too far - move closer');
+          warnings.add('Too far - consider moving closer');
           break;
         case DistanceStatus.optimal:
+          warnings.add('Distance: Optimal');
           break;
       }
     }
     
-    if (state.gps != null && state.gps!.status == GpsStatus.outsideBoundary) {
-      blockers.add('Outside farm boundary');
+    // Tilt warnings (non-blocking)
+    if (state.tilt != null && state.tilt!.status == TiltStatus.tilted) {
+      warnings.add('Camera tilted - try holding level');
     }
     
-    return blockers;
+    // Quality warnings (non-blocking)
+    if (state.imageQuality != null) {
+      if (state.imageQuality!.isBlurry) {
+        warnings.add('Image may be blurry');
+      }
+      if (state.imageQuality!.exposureStatus == ExposureStatus.overexposed) {
+        warnings.add('Too bright');
+      }
+      if (state.imageQuality!.exposureStatus == ExposureStatus.underexposed) {
+        warnings.add('Too dark');
+      }
+      if (state.imageQuality!.hasBacklight) {
+        warnings.add('Backlight detected');
+      }
+    }
+    
+    // Stability warnings (non-blocking)
+    if (!state.isStable) {
+      warnings.add('Hold camera steady');
+    }
+    
+    // GPS warnings (optional, non-blocking)
+    if (state.gps != null && state.gps!.status == GpsStatus.outsideBoundary) {
+      warnings.add('Outside farm boundary');
+    }
+    
+    return warnings;
   }
+  
+  /// Legacy method name for backward compatibility
+  @Deprecated('Use getWarningMessages() instead')
+  List<String> getCaptureBlockers() => getWarningMessages();
 
   /// Get validation score as percentage (0-100)
   double getValidationScore() {

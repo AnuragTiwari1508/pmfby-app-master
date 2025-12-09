@@ -21,6 +21,7 @@ class PendingUpload {
   final SyncStatus status;
   final int retryCount;
   final String? errorMessage;
+  final String? cloudinaryUrl;
 
   PendingUpload({
     required this.id,
@@ -33,6 +34,7 @@ class PendingUpload {
     this.status = SyncStatus.pending,
     this.retryCount = 0,
     this.errorMessage,
+    this.cloudinaryUrl,
   });
 
   Map<String, dynamic> toJson() {
@@ -47,6 +49,7 @@ class PendingUpload {
       'status': status.name,
       'retryCount': retryCount,
       'errorMessage': errorMessage,
+      'cloudinaryUrl': cloudinaryUrl,
     };
   }
 
@@ -65,6 +68,7 @@ class PendingUpload {
       ),
       retryCount: json['retryCount'] as int? ?? 0,
       errorMessage: json['errorMessage'] as String?,
+      cloudinaryUrl: json['cloudinaryUrl'] as String?,
     );
   }
 
@@ -79,6 +83,7 @@ class PendingUpload {
     SyncStatus? status,
     int? retryCount,
     String? errorMessage,
+    String? cloudinaryUrl,
   }) {
     return PendingUpload(
       id: id ?? this.id,
@@ -88,6 +93,7 @@ class PendingUpload {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       capturedAt: capturedAt ?? this.capturedAt,
+      cloudinaryUrl: cloudinaryUrl ?? this.cloudinaryUrl,
       status: status ?? this.status,
       retryCount: retryCount ?? this.retryCount,
       errorMessage: errorMessage ?? this.errorMessage,
@@ -154,6 +160,24 @@ class LocalStorageService {
       final prefs = await SharedPreferences.getInstance();
       final jsonList = uploads.map((u) => u.toJson()).toList();
       await prefs.setString(_pendingUploadsKey, jsonEncode(jsonList));
+    }
+  }
+
+  // Update Cloudinary URL for an upload
+  Future<void> updateUploadUrl(String id, String cloudinaryUrl) async {
+    final uploads = await getPendingUploads();
+    final index = uploads.indexWhere((u) => u.id == id);
+    
+    if (index != -1) {
+      uploads[index] = uploads[index].copyWith(
+        cloudinaryUrl: cloudinaryUrl,
+      );
+      
+      final prefs = await SharedPreferences.getInstance();
+      final jsonList = uploads.map((u) => u.toJson()).toList();
+      await prefs.setString(_pendingUploadsKey, jsonEncode(jsonList));
+      
+      print('✅ Cloudinary URL stored in local database: $cloudinaryUrl');
     }
   }
 
