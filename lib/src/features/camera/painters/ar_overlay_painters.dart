@@ -192,8 +192,13 @@ class AROverlayPainter extends CustomPainter {
 
     // Bubble position based on tilt
     final maxOffset = radius - 8;
-    final bubbleX = (tilt.rollDegrees / 45.0).clamp(-1.0, 1.0) * maxOffset;
-    final bubbleY = (tilt.pitchDegrees / 45.0).clamp(-1.0, 1.0) * maxOffset;
+    
+    // Safe handling of tilt values with NaN/infinity checks
+    double safeRoll = tilt.rollDegrees.isNaN || tilt.rollDegrees.isInfinite ? 0.0 : tilt.rollDegrees;
+    double safePitch = tilt.pitchDegrees.isNaN || tilt.pitchDegrees.isInfinite ? 0.0 : tilt.pitchDegrees;
+    
+    final bubbleX = (safeRoll / 45.0).clamp(-1.0, 1.0) * maxOffset;
+    final bubbleY = (safePitch / 45.0).clamp(-1.0, 1.0) * maxOffset;
     
     final bubblePaint = Paint()
       ..color = indicatorColor
@@ -233,15 +238,18 @@ class AROverlayPainter extends CustomPainter {
     // Validate bounding box is reasonable
     if (boundingBox.width <= 0 || boundingBox.height <= 0) return;
 
-    // Scale bounding box to canvas size
-    final scaleX = size.width / previewSize.width;
-    final scaleY = size.height / previewSize.height;
+    // Scale bounding box to canvas size with safety checks
+    final scaleX = previewSize.width > 0 ? size.width / previewSize.width : 1.0;
+    final scaleY = previewSize.height > 0 ? size.height / previewSize.height : 1.0;
+    
+    // Ensure scales are finite and reasonable
+    if (!scaleX.isFinite || !scaleY.isFinite || scaleX <= 0 || scaleY <= 0) return;
     
     final scaledRect = Rect.fromLTWH(
-      boundingBox.left * scaleX,
-      boundingBox.top * scaleY,
-      boundingBox.width * scaleX,
-      boundingBox.height * scaleY,
+      (boundingBox.left * scaleX).clamp(0.0, size.width),
+      (boundingBox.top * scaleY).clamp(0.0, size.height),
+      (boundingBox.width * scaleX).clamp(0.0, size.width),
+      (boundingBox.height * scaleY).clamp(0.0, size.height),
     );
 
     // Only draw light overlay if the scaled rect is reasonable (not covering whole screen)

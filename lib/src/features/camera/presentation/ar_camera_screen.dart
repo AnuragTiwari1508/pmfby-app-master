@@ -49,6 +49,7 @@ class _ARCameraScreenState extends State<ARCameraScreen>
   String? _error;
   int _selectedCameraIndex = 0;
   bool _isProcessingFrame = false;
+  int _lastFrameProcessed = 0;
 
   // Camera features
   FlashMode _flashMode = FlashMode.auto;
@@ -220,16 +221,21 @@ class _ARCameraScreenState extends State<ARCameraScreen>
     if (_controller != null) {
       try {
         await _controller!.stopImageStream();
+        await Future.delayed(const Duration(milliseconds: 100));
       } catch (e) {
         debugPrint('Error stopping image stream: $e');
       }
-      await _controller!.dispose();
+      try {
+        await _controller!.dispose();
+      } catch (e) {
+        debugPrint('Error disposing controller: $e');
+      }
     }
 
     try {
       _controller = CameraController(
         _cameras![cameraIndex],
-        ResolutionPreset.high,
+        ResolutionPreset.medium, // Reduced from high to prevent issues
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.yuv420,
       );
@@ -243,11 +249,25 @@ class _ARCameraScreenState extends State<ARCameraScreen>
       _maxZoom = await _controller!.getMaxZoomLevel();
       _currentZoom = _minZoom;
 
-      // Start image stream for real-time analysis
+      // Add delay before starting image stream to prevent black screen
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      if (!mounted || _controller == null || !_controller!.value.isInitialized) return;
+
+      // Start image stream for real-time analysis with retry
       try {
         await _controller!.startImageStream(_processFrame);
       } catch (e) {
         debugPrint('Error starting image stream: $e');
+        // Retry once after delay
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted && _controller != null && _controller!.value.isInitialized) {
+          try {
+            await _controller!.startImageStream(_processFrame);
+          } catch (e2) {
+            debugPrint('Failed to start stream after retry: $e2');
+          }
+        }
       }
 
       // Start validation engine
@@ -256,16 +276,20 @@ class _ARCameraScreenState extends State<ARCameraScreen>
       // Start task manager session
       _taskManager.startSession();
 
-      setState(() {
-        _isLoading = false;
-        _error = null;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = null;
+        });
+      }
     } catch (e) {
       debugPrint('Camera setup error: $e');
-      setState(() {
-        _error = 'Failed to initialize camera: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to initialize camera: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -922,8 +946,8 @@ class _ARCameraScreenState extends State<ARCameraScreen>
   }
 
   Widget _buildCameraView(BuildContext context, String lang) {
-    // Add safety check for camera controller
-    if (_controller == null || !_controller!.value.isInitialized) {
+    // Enhanced safety check to prevent black screens
+    if (_controller == null || !_controller!.value.isInitialized || _controller!.value.hasError) {
       return _buildLoadingState(lang);
     }
 
